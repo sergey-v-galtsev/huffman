@@ -1,9 +1,13 @@
 #include <iostream>
 #include <limits>
+#include <map>
+#include <queue>
 #include <string>
 #include <vector>
 
 using namespace std;
+
+#define constexpr
 
 size_t char2index(char ch) constexpr {
     return ch - numeric_limits<char>::min();
@@ -40,7 +44,10 @@ using code_t = map<size_t, string>;
 class huffman_t {
 public:
     size_t count;
-    map<size_t, string> code;
+    code_t code;
+
+    huffman_t() {
+    }
 
     huffman_t(size_t count, size_t index) :
     count { count },
@@ -50,7 +57,11 @@ public:
 
     void prepend(char bit) {
         for (auto c : code)
-            c.second = string(bit) + c.second;
+            c.second = string(bit, 1) + c.second;
+    }
+
+    bool operator<(const huffman_t& other) const {
+        return count < other.count;
     }
 };
 
@@ -62,7 +73,7 @@ huffman_t merge(huffman_t a, huffman_t b) {
     a.prepend('0');
     b.prepend('1');
     result.code = a.code;
-    result.code += b.code;
+    result.code.insert(b.code.begin(), b.code.end());
 
     return result;
 }
@@ -70,14 +81,19 @@ huffman_t merge(huffman_t a, huffman_t b) {
 string encode(const vector<size_t>& input, const code_t& code) {
     string result;
     for (auto ch : input) {
-        result += code[input];
-        result += '\n';
+        auto c = code.find(ch);
+        if (c != code.end()) {
+            result += c->second;
+            result += '\n';
+        } else {
+            cerr << "Can not encode " << ch << " = " << index2char(ch) << '\n';
+        }
     }
     return result;
 }
 
 code_t build_code(const vector<size_t>& input) {
-    vector<size_t> count(1 << numeric_limits<char>::bits);
+    vector<size_t> count(1 << numeric_limits<char>::digits);
 
     for (auto ch : input)
         ++count[ch];
@@ -87,12 +103,14 @@ code_t build_code(const vector<size_t>& input) {
         huffman.push(huffman_t(count[i], i));
 
     while (huffman.size() > 1) {
-        huffman_t a = huffman.pop();
-        huffman_t b = huffman.pop();
+        huffman_t a = huffman.top();
+        huffman.pop();
+        huffman_t b = huffman.top();
+        huffman.pop();
         huffman.push(merge(a, b));
     }
 
-    return huffman.code;
+    return huffman.top().code;
 }
 
 int main() {
@@ -103,6 +121,10 @@ int main() {
     input.push_back(sentinel);
 
     code_t code = build_code(input);
+
+    for (const auto& c : code) {
+        cerr << c.first << ' ' << index2char(c.first) << ' ' << c.second << '\n';
+    }
 
     string output = encode(input, code);
 
