@@ -1,5 +1,6 @@
-#include <iostream>
+#include <cctype>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <queue>
@@ -28,16 +29,16 @@ bool is_char(letter_t l) {
     return l <= max_char;
 }
 
-vector<letter_t> char2letter(const string& input) {
+vector<letter_t> char2letter(const string& text) {
     vector<letter_t> result;
-    for (auto ch : input)
+    for (auto ch : text)
         result.push_back(char2letter(ch));
     return result;
 }
 
-string letter2char(const vector<letter_t>& input) {
+string letter2char(const vector<letter_t>& text) {
     string result;
-    for (auto l : input)
+    for (auto l : text)
         if (is_char(l))
             result += letter2char(l);
     return result;
@@ -46,6 +47,49 @@ string letter2char(const vector<letter_t>& input) {
 using bit_t = char;
 using bits_t = string;
 using code_t = map<letter_t, bits_t>;
+
+bits_t encode(const vector<letter_t>& text, const code_t& code) {
+    bits_t result;
+    for (auto l : text) {
+        auto c = code.find(l);
+        if (c != code.end()) {
+            result += c->second;
+        } else {
+            cerr << "Can not encode letter " << l << " ("
+                << (is_char(l) ? string(1, letter2char(l)) : "not a char") << ")\n";
+        }
+    }
+    return result;
+}
+
+// FIXME: inoptimal, use trie instead
+vector<letter_t> decode(const bits_t& text, const code_t& code) {
+    vector<letter_t> result;
+
+    for (size_t i = 0; i < text.size(); ) {
+        letter_t l;
+        size_t s = 0;
+
+        for (const auto& c : code)
+            if (c.second.size() <= text.size() - i and
+                c.second == text.substr(i, c.second.size())) {
+                l = c.first;
+                s = c.second.size();
+                break;
+            }
+
+        if (s)
+            result.push_back(l);
+        else {
+            cerr << "Failed to decode bit sequence from position " << i << ": " << text.substr(i, 100) << "...\n";
+            break;
+        }
+
+        i += s;
+    }
+
+    return result;
+}
 
 class huffman_t {
 public:
@@ -84,25 +128,10 @@ huffman_t merge(huffman_t a, huffman_t b) {
     return result;
 }
 
-bits_t encode(const vector<letter_t>& input, const code_t& code) {
-    string result;
-    for (auto l : input) {
-        auto c = code.find(l);
-        if (c != code.end()) {
-            result += c->second;
-            result += '\n';
-        } else {
-            cerr << "Can not encode letter " << l << " ("
-                << (is_char(l) ? string(1, letter2char(l)) : "not a char") << ")\n";
-        }
-    }
-    return result;
-}
-
-code_t build_code(const vector<letter_t>& input) {
+code_t build_code(const vector<letter_t>& text) {
     vector<size_t> count(alphabet_size);
 
-    for (auto l : input)
+    for (auto l : text)
         ++count[l];
 
     priority_queue<huffman_t, vector<huffman_t>, greater<huffman_t>> huffman;
@@ -124,9 +153,12 @@ code_t build_code(const vector<letter_t>& input) {
 ostream& operator<<(ostream& out, const code_t& code) {
     for (const auto& c : code) {
         out << "letter=" << c.first;
-        if (is_char(c.first))
-            out << ", char=" << letter2char(c.first);
-        else
+        if (is_char(c.first)) {
+            if (isprint(letter2char(c.first)))
+                out << ", char=" << letter2char(c.first);
+            else
+                out << ", ascii=" << static_cast<int>(static_cast<unsigned char>(letter2char(c.first)));
+        } else
             out << ", not a char";
         out << ", code size=" << c.second.size()
             << ", code=" << c.second << "\n";
@@ -136,19 +168,27 @@ ostream& operator<<(ostream& out, const code_t& code) {
 }
 
 int main() {
-    string s;
-    cin >> s;
+    string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
+   
+    vector<letter_t> text = char2letter(input);
+    text.push_back(sentinel);
 
-    vector<letter_t> input = char2letter(s);
-    input.push_back(sentinel);
+    code_t code = build_code(text);
 
-    code_t code = build_code(input);
+    cout << "code table ************\n"
+        << code << '\n';
 
-    cerr << code;
+    bits_t encoded_text = encode(text, code);
+    string decoded_text = letter2char(decode(encoded_text, code));
 
-    string output = encode(input, code);
-
-    cout << output;
+    cout << "encoded size in bits: " << encoded_text.size() << '\n'
+        << "average bits per char: " << float(encoded_text.size()) / decoded_text.size() << '\n'
+        << "encoded ***************\n"
+        << encoded_text << "\n\n"
+        << "decoded size in chars: " << decoded_text.size() << '\n'
+        << "decoded size in bits: " << decoded_text.size() * CHAR_BIT << '\n'
+        << "decoded ***************\n"
+        << decoded_text << '\n';
 
     return 0;
 }
