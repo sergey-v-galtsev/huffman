@@ -43,7 +43,9 @@ string letter2char(const vector<letter_t>& input) {
     return result;
 }
 
-using code_t = map<letter_t, string>;
+using bit_t = char;
+using bits_t = string;
+using code_t = map<letter_t, bits_t>;
 
 class huffman_t {
 public:
@@ -59,9 +61,9 @@ public:
     {
     }
 
-    void prepend(char bit) {
+    void prepend(bit_t bit) {
         for (auto& c : code)
-            code[c.first] = string(1, bit) + c.second;
+            code[c.first] = bits_t(1, bit) + c.second;
     }
 
     bool operator>(const huffman_t& other) const {
@@ -82,7 +84,7 @@ huffman_t merge(huffman_t a, huffman_t b) {
     return result;
 }
 
-string encode(const vector<letter_t>& input, const code_t& code) {
+bits_t encode(const vector<letter_t>& input, const code_t& code) {
     string result;
     for (auto l : input) {
         auto c = code.find(l);
