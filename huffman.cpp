@@ -1,4 +1,5 @@
 #include <iostream>
+#include <functional>
 #include <limits>
 #include <map>
 #include <queue>
@@ -14,11 +15,12 @@ size_t char2index(char ch) constexpr {
 }
 
 char index2char(size_t i) constexpr {
-    return i + numeric_limits<char>::min();
+    return static_cast<char>(i) + numeric_limits<char>::min();
 }
 
 size_t const constexpr max_char = char2index(numeric_limits<char>::max());
 size_t const constexpr sentinel = max_char + 1;
+size_t const constexpr alphabet_size = sentinel + 1;
 
 bool is_char(size_t i) {
     return i <= max_char;
@@ -56,12 +58,12 @@ public:
     }
 
     void prepend(char bit) {
-        for (auto c : code)
-            c.second = string(bit, 1) + c.second;
+        for (auto& c : code)
+            code[c.first] = string(1, bit) + c.second;
     }
 
-    bool operator<(const huffman_t& other) const {
-        return count < other.count;
+    bool operator>(const huffman_t& other) const {
+        return count > other.count;
     }
 };
 
@@ -86,21 +88,27 @@ string encode(const vector<size_t>& input, const code_t& code) {
             result += c->second;
             result += '\n';
         } else {
-            cerr << "Can not encode " << ch << " = " << index2char(ch) << '\n';
+            cerr << "Can not encode " << ch << " = ";
+            if (is_char(ch))
+               cerr << index2char(ch);
+            else
+               cerr << "not a char";
+            cerr << '\n';
         }
     }
     return result;
 }
 
 code_t build_code(const vector<size_t>& input) {
-    vector<size_t> count(1 << numeric_limits<char>::digits);
+    vector<size_t> count(alphabet_size);
 
     for (auto ch : input)
         ++count[ch];
 
-    priority_queue<huffman_t> huffman;
+    priority_queue<huffman_t, vector<huffman_t>, greater<huffman_t>> huffman;
     for (size_t i = 0; i < count.size(); ++i)
-        huffman.push(huffman_t(count[i], i));
+        if (count[i] > 0)
+            huffman.push(huffman_t(count[i], i));
 
     while (huffman.size() > 1) {
         huffman_t a = huffman.top();
@@ -113,6 +121,20 @@ code_t build_code(const vector<size_t>& input) {
     return huffman.top().code;
 }
 
+ostream& operator<<(ostream& out, const code_t& code) {
+    for (const auto& c : code) {
+        out << "letter=" << c.first;
+        if (is_char(c.first))
+            out << ", char=" << index2char(c.first);
+        else
+            out << ", not a char";
+        out << ", code size=" << c.second.size()
+            << ", code=" << c.second << "\n";
+    }
+
+    return out;
+}
+
 int main() {
     string s;
     cin >> s;
@@ -122,9 +144,7 @@ int main() {
 
     code_t code = build_code(input);
 
-    for (const auto& c : code) {
-        cerr << c.first << ' ' << index2char(c.first) << ' ' << c.second << '\n';
-    }
+    cerr << code;
 
     string output = encode(input, code);
 
