@@ -10,38 +10,40 @@ using namespace std;
 
 #define constexpr
 
-size_t char2index(char ch) constexpr {
+using letter_t = size_t;
+
+letter_t char2letter(char ch) constexpr {
     return ch - numeric_limits<char>::min();
 }
 
-char index2char(size_t i) constexpr {
-    return static_cast<char>(i) + numeric_limits<char>::min();
+char letter2char(letter_t l) constexpr {
+    return static_cast<char>(l) + numeric_limits<char>::min();
 }
 
-size_t const constexpr max_char = char2index(numeric_limits<char>::max());
-size_t const constexpr sentinel = max_char + 1;
-size_t const constexpr alphabet_size = sentinel + 1;
+letter_t const constexpr max_char = char2letter(numeric_limits<char>::max());
+letter_t const constexpr sentinel = max_char + 1;
+letter_t const constexpr alphabet_size = sentinel + 1;
 
-bool is_char(size_t i) {
-    return i <= max_char;
+bool is_char(letter_t l) {
+    return l <= max_char;
 }
 
-vector<size_t> string2alphabet(const string& input) {
-    vector<size_t> result;
+vector<letter_t> char2letter(const string& input) {
+    vector<letter_t> result;
     for (auto ch : input)
-        result.push_back(char2index(ch));
+        result.push_back(char2letter(ch));
     return result;
 }
 
-string alphabet2string (const vector<size_t>& input) {
+string letter2char(const vector<letter_t>& input) {
     string result;
-    for (auto ch : input)
-        if (is_char(ch))
-            result += index2char(ch);
+    for (auto l : input)
+        if (is_char(l))
+            result += letter2char(l);
     return result;
 }
 
-using code_t = map<size_t, string>;
+using code_t = map<letter_t, string>;
 
 class huffman_t {
 public:
@@ -51,9 +53,9 @@ public:
     huffman_t() {
     }
 
-    huffman_t(size_t count, size_t index) :
+    huffman_t(size_t count, letter_t letter) :
     count { count },
-    code { { index, "" } }
+    code { { letter, "" } }
     {
     }
 
@@ -80,33 +82,29 @@ huffman_t merge(huffman_t a, huffman_t b) {
     return result;
 }
 
-string encode(const vector<size_t>& input, const code_t& code) {
+string encode(const vector<letter_t>& input, const code_t& code) {
     string result;
-    for (auto ch : input) {
-        auto c = code.find(ch);
+    for (auto l : input) {
+        auto c = code.find(l);
         if (c != code.end()) {
             result += c->second;
             result += '\n';
         } else {
-            cerr << "Can not encode " << ch << " = ";
-            if (is_char(ch))
-               cerr << index2char(ch);
-            else
-               cerr << "not a char";
-            cerr << '\n';
+            cerr << "Can not encode letter " << l << " ("
+                << (is_char(l) ? string(1, letter2char(l)) : "not a char") << ")\n";
         }
     }
     return result;
 }
 
-code_t build_code(const vector<size_t>& input) {
+code_t build_code(const vector<letter_t>& input) {
     vector<size_t> count(alphabet_size);
 
-    for (auto ch : input)
-        ++count[ch];
+    for (auto l : input)
+        ++count[l];
 
     priority_queue<huffman_t, vector<huffman_t>, greater<huffman_t>> huffman;
-    for (size_t i = 0; i < count.size(); ++i)
+    for (letter_t i = 0; i < count.size(); ++i)
         if (count[i] > 0)
             huffman.push(huffman_t(count[i], i));
 
@@ -125,7 +123,7 @@ ostream& operator<<(ostream& out, const code_t& code) {
     for (const auto& c : code) {
         out << "letter=" << c.first;
         if (is_char(c.first))
-            out << ", char=" << index2char(c.first);
+            out << ", char=" << letter2char(c.first);
         else
             out << ", not a char";
         out << ", code size=" << c.second.size()
@@ -139,7 +137,7 @@ int main() {
     string s;
     cin >> s;
 
-    vector<size_t> input = string2alphabet(s);
+    vector<letter_t> input = char2letter(s);
     input.push_back(sentinel);
 
     code_t code = build_code(input);
