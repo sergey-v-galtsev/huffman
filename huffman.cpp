@@ -10,6 +10,7 @@
 using namespace std;
 
 using letter_t = size_t;
+using text_t = vector<letter_t>;
 
 letter_t char2letter(char ch)
 {
@@ -22,7 +23,7 @@ char letter2char(letter_t l)
 }
 
 letter_t const max_char = char2letter(numeric_limits<char>::max());
-letter_t const sentinel = max_char + 1;
+letter_t const sentinel = max_char + 1; /* Just for a demonstration purpose. */
 letter_t const alphabet_size = sentinel + 1;
 
 bool is_char(letter_t l)
@@ -30,15 +31,15 @@ bool is_char(letter_t l)
     return l <= max_char;
 }
 
-vector<letter_t> char2letter(string const & text)
+text_t char2letter(string const & text)
 {
-    vector<letter_t> result;
+    text_t result;
     for (auto ch : text)
         result.push_back(char2letter(ch));
     return result;
 }
 
-string letter2char(vector<letter_t> const & text)
+string letter2char(text_t const & text)
 {
     string result;
     for (auto l : text)
@@ -51,7 +52,7 @@ using bit_t = char;
 using bits_t = string;
 using code_t = map<letter_t, bits_t>;
 
-bits_t encode(vector<letter_t> const & text, code_t const & code)
+bits_t encode(text_t const & text, code_t const & code)
 {
     bits_t result;
     for (auto l : text)
@@ -67,9 +68,9 @@ bits_t encode(vector<letter_t> const & text, code_t const & code)
 }
 
 // FIXME: inoptimal, use trie instead
-vector<letter_t> decode(bits_t const & text, code_t const & code)
+text_t decode(bits_t const & text, code_t const & code)
 {
-    vector<letter_t> result;
+    text_t result;
 
     for (size_t i = 0; i < text.size(); )
     {
@@ -141,7 +142,7 @@ huffman_t merge(huffman_t a, huffman_t b)
     return result;
 }
 
-code_t build_code(vector<letter_t> const & text)
+code_t build_code(text_t const & text)
 {
     vector<size_t> count(alphabet_size);
 
@@ -189,7 +190,7 @@ int main()
 {
     string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
 
-    vector<letter_t> text = char2letter(input);
+    text_t text = char2letter(input);
     text.push_back(sentinel);
 
     code_t code = build_code(text);
