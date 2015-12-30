@@ -24,7 +24,6 @@ char letter2char(letter_t l)
 
 letter_t const max_char = char2letter(numeric_limits<char>::max());
 letter_t const sentinel = max_char + 1; /* Just for a demonstration purpose. */
-letter_t const alphabet_size = sentinel + 1;
 
 bool is_char(letter_t l)
 {
@@ -144,10 +143,14 @@ huffman_t merge(huffman_t a, huffman_t b)
 
 code_t build_code(text_t const & text)
 {
-    vector<size_t> count(alphabet_size);
+    vector<size_t> count;
 
     for (auto l : text)
+    {
+        if (l >= count.size())
+            count.resize(l + 1);
         ++count[l];
+    }
 
     priority_queue<huffman_t, vector<huffman_t>, greater<huffman_t>> huffman;
     for (letter_t i = 0; i < count.size(); ++i)
