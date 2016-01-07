@@ -51,6 +51,16 @@ using bit_t = char;
 using bits_t = string;
 using code_t = map<letter_t, bits_t>;
 
+bit_t int2bit(uint8_t x)
+{
+    return '0' + (x & 1);
+}
+
+uint8_t bit2int(bit_t x)
+{
+    return (x - '0') & 1;
+}
+
 bits_t encode(text_t const & text, code_t const & code)
 {
     bits_t result;
@@ -133,8 +143,8 @@ huffman_t merge(huffman_t a, huffman_t b)
 
     result.count = a.count + b.count;
 
-    a.prepend('0');
-    b.prepend('1');
+    a.prepend(int2bit(0));
+    b.prepend(int2bit(1));
     result.code = a.code;
     result.code.insert(b.code.begin(), b.code.end());
 
