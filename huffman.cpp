@@ -9,34 +9,37 @@
 
 using namespace std;
 
-#define constexpr
-
 using letter_t = size_t;
 
-letter_t char2letter(char ch) constexpr {
+letter_t char2letter(char ch)
+{
     return ch - numeric_limits<char>::min();
 }
 
-char letter2char(letter_t l) constexpr {
+char letter2char(letter_t l)
+{
     return static_cast<char>(l) + numeric_limits<char>::min();
 }
 
-letter_t const constexpr max_char = char2letter(numeric_limits<char>::max());
-letter_t const constexpr sentinel = max_char + 1;
-letter_t const constexpr alphabet_size = sentinel + 1;
+letter_t const max_char = char2letter(numeric_limits<char>::max());
+letter_t const sentinel = max_char + 1;
+letter_t const alphabet_size = sentinel + 1;
 
-bool is_char(letter_t l) {
+bool is_char(letter_t l)
+{
     return l <= max_char;
 }
 
-vector<letter_t> char2letter(const string& text) {
+vector<letter_t> char2letter(string const & text)
+{
     vector<letter_t> result;
     for (auto ch : text)
         result.push_back(char2letter(ch));
     return result;
 }
 
-string letter2char(const vector<letter_t>& text) {
+string letter2char(vector<letter_t> const & text)
+{
     string result;
     for (auto l : text)
         if (is_char(l))
@@ -48,31 +51,35 @@ using bit_t = char;
 using bits_t = string;
 using code_t = map<letter_t, bits_t>;
 
-bits_t encode(const vector<letter_t>& text, const code_t& code) {
+bits_t encode(vector<letter_t> const & text, code_t const & code)
+{
     bits_t result;
-    for (auto l : text) {
+    for (auto l : text)
+    {
         auto c = code.find(l);
-        if (c != code.end()) {
+        if (c != code.end())
             result += c->second;
-        } else {
+        else
             cerr << "Can not encode letter " << l << " ("
                 << (is_char(l) ? string(1, letter2char(l)) : "not a char") << ")\n";
-        }
     }
     return result;
 }
 
 // FIXME: inoptimal, use trie instead
-vector<letter_t> decode(const bits_t& text, const code_t& code) {
+vector<letter_t> decode(bits_t const & text, code_t const & code)
+{
     vector<letter_t> result;
 
-    for (size_t i = 0; i < text.size(); ) {
+    for (size_t i = 0; i < text.size(); )
+    {
         letter_t l;
         size_t s = 0;
 
-        for (const auto& c : code)
+        for (const auto & c : code)
             if (c.second.size() <= text.size() - i and
-                c.second == text.substr(i, c.second.size())) {
+                c.second == text.substr(i, c.second.size()))
+            {
                 l = c.first;
                 s = c.second.size();
                 break;
@@ -80,7 +87,8 @@ vector<letter_t> decode(const bits_t& text, const code_t& code) {
 
         if (s)
             result.push_back(l);
-        else {
+        else
+        {
             cerr << "Failed to decode bit sequence from position " << i << ": " << text.substr(i, 100) << "...\n";
             break;
         }
@@ -91,31 +99,36 @@ vector<letter_t> decode(const bits_t& text, const code_t& code) {
     return result;
 }
 
-class huffman_t {
+class huffman_t
+{
 public:
     size_t count;
     code_t code;
 
-    huffman_t() {
-    }
-
-    huffman_t(size_t count, letter_t letter) :
-    count { count },
-    code { { letter, "" } }
+    huffman_t()
     {
     }
 
-    void prepend(bit_t bit) {
-        for (auto& c : code)
+    huffman_t(size_t count, letter_t letter) :
+        count { count },
+        code { { letter, "" } }
+    {
+    }
+
+    void prepend(bit_t bit)
+    {
+        for (auto & c : code)
             code[c.first] = bits_t(1, bit) + c.second;
     }
 
-    bool operator>(const huffman_t& other) const {
+    bool operator>(const huffman_t & other) const
+    {
         return count > other.count;
     }
 };
 
-huffman_t merge(huffman_t a, huffman_t b) {
+huffman_t merge(huffman_t a, huffman_t b)
+{
     huffman_t result;
 
     result.count = a.count + b.count;
@@ -128,7 +141,8 @@ huffman_t merge(huffman_t a, huffman_t b) {
     return result;
 }
 
-code_t build_code(const vector<letter_t>& text) {
+code_t build_code(vector<letter_t> const & text)
+{
     vector<size_t> count(alphabet_size);
 
     for (auto l : text)
@@ -139,7 +153,8 @@ code_t build_code(const vector<letter_t>& text) {
         if (count[i] > 0)
             huffman.push(huffman_t(count[i], i));
 
-    while (huffman.size() > 1) {
+    while (huffman.size() > 1)
+    {
         huffman_t a = huffman.top();
         huffman.pop();
         huffman_t b = huffman.top();
@@ -150,10 +165,13 @@ code_t build_code(const vector<letter_t>& text) {
     return huffman.top().code;
 }
 
-ostream& operator<<(ostream& out, const code_t& code) {
-    for (const auto& c : code) {
+ostream & operator<<(ostream & out, code_t const & code)
+{
+    for (const auto & c : code)
+    {
         out << "letter=" << c.first;
-        if (is_char(c.first)) {
+        if (is_char(c.first))
+        {
             if (isprint(letter2char(c.first)))
                 out << ", char=" << letter2char(c.first);
             else
@@ -167,9 +185,10 @@ ostream& operator<<(ostream& out, const code_t& code) {
     return out;
 }
 
-int main() {
+int main()
+{
     string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
-   
+
     vector<letter_t> text = char2letter(input);
     text.push_back(sentinel);
 
