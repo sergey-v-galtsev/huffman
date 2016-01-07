@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cctype>
 #include <functional>
 #include <iostream>
@@ -199,6 +200,35 @@ ostream & operator<<(ostream & out, code_t const & code)
     return out;
 }
 
+string pack_bits(bits_t bits)
+{
+    string result;
+
+    while (bits.size() % CHAR_BIT)
+        bits += int2bit(0);
+
+    for (size_t i = 0; i < bits.size(); )
+    {
+        uint8_t ch = 0;
+        for (size_t j = 0; j < CHAR_BIT; ++j, ++i)
+            ch = (ch << 1) | bit2int(bits[i]);
+        result += static_cast<char>(ch);
+    }
+
+    return result;
+}
+
+bits_t unpack_bits(string in)
+{
+    string result;
+
+    for (uint8_t ch : in)
+        for (size_t j = CHAR_BIT; j--; )
+            result += int2bit((ch >> j) & 1);
+
+    return result;
+}
+
 int main()
 {
     string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
@@ -208,13 +238,25 @@ int main()
 
     code_t code = build_code(text);
 
-    cout << "code table ************\n"
+    cerr << "code table ************\n"
         << code << '\n';
 
     bits_t encoded_text = encode(text, code);
+
+    string packed = pack_bits(encoded_text);
+    cout.write(&packed[0], packed.size());
+
+    bits_t unpacked = unpack_bits(packed);
+    assert(unpacked.size() >= encoded_text.size());
+    assert(unpacked.size() % CHAR_BIT == 0);
+    assert(unpacked.size() - encoded_text.size() < CHAR_BIT);
+
+    unpacked.resize(encoded_text.size());
+    assert(unpacked == encoded_text);
+
     string decoded_text = letter2char(decode(encoded_text, code));
 
-    cout << "encoded size in bits: " << encoded_text.size() << '\n'
+    cerr << "encoded size in bits: " << encoded_text.size() << '\n'
         << "average bits per char: " << float(encoded_text.size()) / decoded_text.size() << '\n'
         << "encoded ***************\n"
         << encoded_text << "\n\n"
