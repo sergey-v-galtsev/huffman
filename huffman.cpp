@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <limits>
@@ -60,6 +61,30 @@ bit_t int2bit(uint8_t x)
 uint8_t bit2int(bit_t x)
 {
     return (x - '0') & 1;
+}
+
+bits_t uint2unary(unsigned int n)
+{
+    bits_t result(n, int2bit(1));
+    result += int2bit(0);
+    return result;
+}
+
+unsigned int unary2uint(bits_t const & bits, size_t & position)
+{
+    unsigned int result = 0;
+    for (; position < bits.size() and bits[position] == int2bit(1); ++position)
+        ++result;
+
+    if (position < bits.size())
+        ++position;
+    else
+    {
+        cerr << "Error: no terminating zero bit in a unary code.\n";
+        abort();
+    }
+
+    return result;
 }
 
 bits_t encode(text_t const & text, code_t const & code)
@@ -200,12 +225,33 @@ ostream & operator<<(ostream & out, code_t const & code)
     return out;
 }
 
+bits_t pad(bits_t const & bits, size_t boundary)
+{
+    assert(boundary != 0);
+
+    size_t pad_size = boundary - (bits.size() % boundary);
+    assert(pad_size > 0);
+
+    bits_t result = uint2unary(pad_size - 1) + bits;
+
+    assert(result.size() % boundary == 0);
+    assert(result.size() - bits.size() <= boundary);
+
+    return result;
+}
+
+bits_t unpad(bits_t const & bits)
+{
+    size_t position = 0;
+    unary2uint(bits, position);
+    return bits.substr(position);
+}
+
 string pack_bits(bits_t bits)
 {
     string result;
 
-    while (bits.size() % CHAR_BIT)
-        bits += int2bit(0);
+    bits = pad(bits, CHAR_BIT);
 
     for (size_t i = 0; i < bits.size(); )
     {
@@ -226,7 +272,7 @@ bits_t unpack_bits(string in)
         for (size_t j = CHAR_BIT; j--; )
             result += int2bit((ch >> j) & 1);
 
-    return result;
+    return unpad(result);
 }
 
 int main()
@@ -247,14 +293,11 @@ int main()
     cout.write(&packed[0], packed.size());
 
     bits_t unpacked = unpack_bits(packed);
-    assert(unpacked.size() >= encoded_text.size());
-    assert(unpacked.size() % CHAR_BIT == 0);
-    assert(unpacked.size() - encoded_text.size() < CHAR_BIT);
 
-    unpacked.resize(encoded_text.size());
+    string decoded_text = letter2char(decode(unpacked, code));
+    assert(decoded_text == input);
+
     assert(unpacked == encoded_text);
-
-    string decoded_text = letter2char(decode(encoded_text, code));
 
     cerr << "encoded size in bits: " << encoded_text.size() << '\n'
         << "average bits per char: " << float(encoded_text.size()) / decoded_text.size() << '\n'
