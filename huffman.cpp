@@ -112,7 +112,7 @@ text_t decode(bits_t const & text, code_t const & code)
         letter_t l;
         size_t s = 0;
 
-        for (const auto & c : code)
+        for (auto const & c : code)
             if (c.second.size() <= text.size() - i and
                 c.second == text.substr(i, c.second.size()))
             {
@@ -157,7 +157,7 @@ public:
             code[c.first] = bits_t(1, bit) + c.second;
     }
 
-    bool operator>(const huffman_t & other) const
+    bool operator>(huffman_t const & other) const
     {
         return count > other.count;
     }
@@ -207,7 +207,7 @@ code_t build_code(text_t const & text)
 
 ostream & operator<<(ostream & out, code_t const & code)
 {
-    for (const auto & c : code)
+    for (auto const & c : code)
     {
         out << "letter=" << c.first;
         if (is_char(c.first))
