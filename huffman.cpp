@@ -87,6 +87,46 @@ unsigned int unary2uint(bits_t const & bits, size_t & position)
     return result;
 }
 
+unsigned int digits(unsigned int n)
+{
+    unsigned int result = 0;
+    for (; n > 0; n >>= 1)
+        ++result;
+    return result;
+}
+
+bits_t uint2gamma(unsigned int n)
+{
+    assert(n != 0);
+
+    unsigned int size = digits(n);
+    bits_t result(size - 1, int2bit(0));
+
+    for (unsigned int i = size; i-- > 0; )
+        result += int2bit((n >> i) & 1);
+
+    return result;
+}
+
+unsigned int gamma2uint(bits_t const & bits, size_t & position)
+{
+    unsigned int size = 1;
+    for (; position < bits.size() and bits[position] == int2bit(0); ++position)
+        ++size;
+
+    if (bits.size() - position < size)
+    {
+        cerr << "Error: gamma code is truncated.\n";
+        abort();
+    }
+
+    unsigned int result = 0;
+    for (unsigned int i = 0; i < size; ++i, ++position)
+        result = (result << 1) | bit2int(bits[position]);
+
+    return result;
+}
+
 bits_t encode(text_t const & text, code_t const & code)
 {
     bits_t result;
@@ -275,8 +315,22 @@ bits_t unpack_bits(string in)
     return unpad(result);
 }
 
+void test_gamma()
+{
+    for (unsigned int i = 1; i < 1000; ++i)
+    {
+        bits_t gamma = uint2gamma(i);
+        size_t position = 0;
+        unsigned int decoded_i = gamma2uint(gamma, position);
+        cerr << i << ' ' << gamma << ' ' << decoded_i << '\n';
+        assert(decoded_i == i);
+    }
+}
+
 int main()
 {
+    test_gamma();
+
     string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
 
     text_t text = char2letter(input);
