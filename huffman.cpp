@@ -16,15 +16,15 @@ using text_t = vector<letter_t>;
 
 letter_t char2letter(char ch)
 {
-    return ch - numeric_limits<char>::min();
+    return static_cast<unsigned char>(ch);
 }
 
 char letter2char(letter_t l)
 {
-    return static_cast<char>(l) + numeric_limits<char>::min();
+    return static_cast<unsigned char>(l);
 }
 
-letter_t const max_char = char2letter(numeric_limits<char>::max());
+letter_t const max_char = char2letter(numeric_limits<unsigned char>::max());
 letter_t const sentinel = max_char + 1; /* Just for a demonstration purpose. */
 
 bool is_char(letter_t l)
