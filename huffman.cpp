@@ -265,6 +265,59 @@ ostream & operator<<(ostream & out, code_t const & code)
     return out;
 }
 
+bits_t pack_code(code_t const & code)
+{
+    bits_t result = uint2gamma(code.size());
+
+    letter_t previous_letter = -1;
+
+    for (auto const & c : code)
+    {
+        assert(previous_letter == -1 or previous_letter < c.first);
+        result += uint2gamma(c.first - previous_letter);
+        previous_letter = c.first;
+
+        result += uint2gamma(c.second.size());
+        result += c.second;
+    }
+
+    return result;
+}
+
+code_t unpack_code(bits_t const & bits, size_t & position)
+{
+    code_t result;
+
+    letter_t letter = -1;
+
+    unsigned int entries = gamma2uint(bits, position);
+    unsigned int i;
+
+    for (i = 0; position < bits.size() and i < entries; ++i)
+    {
+        letter += gamma2uint(bits, position);
+
+        unsigned int code_size = gamma2uint(bits, position);
+        if (bits.size() - position < code_size)
+        {
+            cerr << "Error: code table is truncated.\n";
+            abort();
+        }
+        bits_t code = bits.substr(position, code_size);
+        position += code_size;
+
+        result[letter] = code;
+    }
+
+    if (i != entries)
+    {
+        cerr << "Error: failed to read code table. Found only " << i << " of " << entries << " entries.\n";
+        abort();
+    }
+
+    return result;
+}
+
 bits_t pad(bits_t const & bits, size_t boundary)
 {
     assert(boundary != 0);
@@ -337,30 +390,45 @@ int main()
     text.push_back(sentinel);
 
     code_t code = build_code(text);
+    bits_t packed_code = pack_code(code);
 
     cerr << "code table ************\n"
         << code << '\n';
+    cerr << "packed code ***********\n"
+        << "size = " << packed_code.size() << '\n'
+        << packed_code << '\n';
 
     bits_t encoded_text = encode(text, code);
 
-    string packed = pack_bits(encoded_text);
+    string packed = pack_bits(packed_code + encoded_text);
     cout.write(&packed[0], packed.size());
 
     bits_t unpacked = unpack_bits(packed);
 
-    string decoded_text = letter2char(decode(unpacked, code));
+    size_t position = 0;
+    code_t unpacked_code = unpack_code(unpacked, position);
+    assert(code.size() == unpacked_code.size());
+    for (auto c : code)
+        assert(c.second == unpacked_code[c.first]);
+
+    unpacked = unpacked.substr(position);
+
+    string decoded_text = letter2char(decode(unpacked, unpacked_code));
     assert(decoded_text == input);
 
     assert(unpacked == encoded_text);
 
-    cerr << "encoded size in bits: " << encoded_text.size() << '\n'
-        << "average bits per char: " << float(encoded_text.size()) / decoded_text.size() << '\n'
+    cerr << "encoded size in bits: " << packed_code.size() << " + " << encoded_text.size()
+        << " = " << packed_code.size() + encoded_text.size() << '\n'
+        << "average bits per char: " << float(packed_code.size() + encoded_text.size()) / decoded_text.size() << '\n'
         << "encoded ***************\n"
-        << encoded_text << "\n\n"
+        << packed_code + encoded_text << "\n\n"
         << "decoded size in chars: " << decoded_text.size() << '\n'
         << "decoded size in bits: " << decoded_text.size() * CHAR_BIT << '\n'
         << "decoded ***************\n"
-        << decoded_text << '\n';
+        << decoded_text << '\n'
+        << "pack ratio ************\n"
+        << float(packed.size()) / decoded_text.size() << '\n';
 
     return 0;
 }
