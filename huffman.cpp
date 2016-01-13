@@ -357,7 +357,7 @@ string pack_bits(bits_t bits)
     return result;
 }
 
-bits_t unpack_bits(string in)
+bits_t unpack_bits(string const & in)
 {
     string result;
 
