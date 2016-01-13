@@ -7,6 +7,7 @@
 #include <map>
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace std;
@@ -191,6 +192,16 @@ public:
     {
     }
 
+    huffman_t(huffman_t && a, huffman_t && b) :
+        count { a.count + b.count }
+    {
+        a.prepend(int2bit(0));
+        b.prepend(int2bit(1));
+
+        swap(code, a.code);
+        code.insert(b.code.begin(), b.code.end());
+    }
+
     void prepend(bit_t bit)
     {
         for (auto & c : code)
@@ -202,20 +213,6 @@ public:
         return count > other.count;
     }
 };
-
-huffman_t merge(huffman_t a, huffman_t b)
-{
-    huffman_t result;
-
-    result.count = a.count + b.count;
-
-    a.prepend(int2bit(0));
-    b.prepend(int2bit(1));
-    result.code = a.code;
-    result.code.insert(b.code.begin(), b.code.end());
-
-    return result;
-}
 
 code_t build_code(text_t const & text)
 {
@@ -239,10 +236,12 @@ code_t build_code(text_t const & text)
         huffman.pop();
         huffman_t b = huffman.top();
         huffman.pop();
-        huffman.push(merge(a, b));
+        huffman.push(huffman_t(move(a), move(b)));
     }
 
-    return huffman.top().code;
+    huffman_t result = huffman.top();
+    huffman.pop();
+    return result.code;
 }
 
 ostream & operator<<(ostream & out, code_t const & code)
