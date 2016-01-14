@@ -2,6 +2,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -394,22 +395,17 @@ void test_prefix_code(code_t const & code)
     }
 }
 
-int main()
+void test_encode_decode(string const & input)
 {
-    test_gamma();
-
-    string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
-
     text_t text = char2letter(input);
     text.push_back(sentinel);
 
     code_t code = build_code(text);
     test_prefix_code(code);
-
-    bits_t packed_code = pack_code(code);
-
     cerr << "code table ************\n"
         << code << '\n';
+
+    bits_t packed_code = pack_code(code);
     cerr << "packed code ***********\n"
         << "size = " << packed_code.size() << '\n'
         << packed_code << '\n';
@@ -417,34 +413,56 @@ int main()
     bits_t encoded_text = encode(text, code);
 
     string packed = pack_bits(packed_code + encoded_text);
-    cout.write(&packed[0], packed.size());
 
     bits_t unpacked = unpack_bits(packed);
 
     size_t position = 0;
     code_t unpacked_code = unpack_code(unpacked, position);
-    assert(code.size() == unpacked_code.size());
-    for (auto c : code)
-        assert(c.second == unpacked_code[c.first]);
+    assert(code == unpacked_code);
 
     unpacked = unpacked.substr(position);
-
-    string decoded_text = letter2char(decode(unpacked, unpacked_code));
-    assert(decoded_text == input);
-
     assert(unpacked == encoded_text);
+
+    text_t decoded_text = decode(unpacked, unpacked_code);
+    assert(decoded_text == text);
+
+    string decoded_input = letter2char(decoded_text);
+    assert(decoded_input == input);
 
     cerr << "encoded size in bits: " << packed_code.size() << " + " << encoded_text.size()
         << " = " << packed_code.size() + encoded_text.size() << '\n'
-        << "average bits per char: " << float(packed_code.size() + encoded_text.size()) / decoded_text.size() << '\n'
+        << "average bits per char: " << float(packed_code.size() + encoded_text.size()) / decoded_input.size() << '\n'
         << "encoded ***************\n"
         << packed_code + encoded_text << "\n\n"
-        << "decoded size in chars: " << decoded_text.size() << '\n'
-        << "decoded size in bits: " << decoded_text.size() * CHAR_BIT << '\n'
+        << "decoded size in chars: " << decoded_input.size() << '\n'
+        << "decoded size in bits: " << decoded_input.size() * CHAR_BIT << '\n'
         << "decoded ***************\n"
-        << decoded_text << '\n'
+        << decoded_input << '\n'
         << "pack ratio ************\n"
-        << float(packed.size()) / decoded_text.size() << '\n';
+        << float(packed.size()) / decoded_input.size() << '\n';
+}
+
+int main()
+{
+    test_gamma();
+
+    vector<string> test_data {
+        "01",
+        "abracadabra",
+        "banana",
+        "pizza",
+        "to be or not to be?",
+        "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    };
+
+    for (auto const & text : test_data)
+        test_encode_decode(text);
+
+    if (ifstream in { "huffman.cpp" })
+    {
+        string input { istreambuf_iterator<char>(in), istreambuf_iterator<char>() };
+        test_encode_decode(input);
+    }
 
     return 0;
 }
