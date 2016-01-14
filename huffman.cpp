@@ -240,6 +240,9 @@ code_t build_code(text_t const & text)
         huffman.push(huffman_t(move(a), move(b)));
     }
 
+    if (huffman.empty())
+        return code_t { };
+
     code_t result = huffman.top().code;
     huffman.pop();
 
@@ -271,7 +274,7 @@ ostream & operator<<(ostream & out, code_t const & code)
 
 bits_t pack_code(code_t const & code)
 {
-    bits_t result = uint2gamma(code.size());
+    bits_t result = uint2gamma(code.size() + 1);
 
     letter_t previous_letter = -1;
 
@@ -294,7 +297,7 @@ code_t unpack_code(bits_t const & bits, size_t & position)
 
     letter_t letter = -1;
 
-    unsigned int entries = gamma2uint(bits, position);
+    unsigned int entries = gamma2uint(bits, position) - 1;
     unsigned int i;
 
     for (i = 0; position < bits.size() and i < entries; ++i)
@@ -451,6 +454,7 @@ int main()
     test_gamma();
 
     vector<string> test_data {
+        "",
         "0",
         "01",
         "abracadabra",
