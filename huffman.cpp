@@ -240,9 +240,13 @@ code_t build_code(text_t const & text)
         huffman.push(huffman_t(move(a), move(b)));
     }
 
-    huffman_t result = huffman.top();
+    code_t result = huffman.top().code;
     huffman.pop();
-    return result.code;
+
+    if (result.size() == 1 and result.begin()->second.empty())
+        result.begin()->second = "0";
+
+    return result;
 }
 
 ostream & operator<<(ostream & out, code_t const & code)
@@ -395,10 +399,10 @@ void test_prefix_code(code_t const & code)
     }
 }
 
-void test_encode_decode(string const & input)
+void test_encode_decode(string const & input, text_t suffix = text_t { })
 {
     text_t text = char2letter(input);
-    text.push_back(sentinel);
+    text.insert(text.end(), suffix.begin(), suffix.end());
 
     code_t code = build_code(text);
     test_prefix_code(code);
@@ -447,6 +451,7 @@ int main()
     test_gamma();
 
     vector<string> test_data {
+        "0",
         "01",
         "abracadabra",
         "banana",
@@ -456,7 +461,10 @@ int main()
     };
 
     for (auto const & text : test_data)
+    {
         test_encode_decode(text);
+        test_encode_decode(text, { sentinel });
+    }
 
     if (ifstream in { "huffman.cpp" })
     {
