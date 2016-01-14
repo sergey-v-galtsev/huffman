@@ -379,6 +379,21 @@ void test_gamma()
     }
 }
 
+void test_prefix_code(code_t const & code)
+{
+    vector<bits_t> code_words;
+    for (auto const & c : code)
+        code_words.push_back(c.second);
+
+    sort(code_words.begin(), code_words.end());
+
+    for (size_t i = 0; i + 1 < code_words.size(); ++i)
+    {
+        cerr << '"' << code_words[i] << "\" \"" << code_words[i + 1] << "\"\n";
+        assert(code_words[i + 1].substr(0, code_words[i].size()) != code_words[i]);
+    }
+}
+
 int main()
 {
     test_gamma();
@@ -389,6 +404,8 @@ int main()
     text.push_back(sentinel);
 
     code_t code = build_code(text);
+    test_prefix_code(code);
+
     bits_t packed_code = pack_code(code);
 
     cerr << "code table ************\n"
