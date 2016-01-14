@@ -2,7 +2,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <functional>
-#include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -449,7 +448,7 @@ void test_encode_decode(string const & input, text_t suffix = text_t { })
         << float(packed.size()) / decoded_input.size() << '\n';
 }
 
-int main()
+string test(string const & input)
 {
     test_gamma();
 
@@ -470,11 +469,68 @@ int main()
         test_encode_decode(text, { sentinel });
     }
 
-    if (ifstream in { "huffman.cpp" })
+    test_encode_decode(input);
+
+    return "Tests passed.\n";
+}
+
+string compress(string const & input)
+{
+    text_t text = char2letter(input);
+    code_t code = build_code(text);
+    bits_t packed_code = pack_code(code);
+    bits_t encoded_text = encode(text, code);
+    return pack_bits(packed_code + encoded_text);
+}
+
+string decompress(string const & packed)
+{
+    bits_t unpacked = unpack_bits(packed);
+    size_t position = 0;
+    code_t unpacked_code = unpack_code(unpacked, position);
+    unpacked = unpacked.substr(position);
+    return letter2char(decode(unpacked, unpacked_code));
+}
+
+bool if_option(int argc, char ** argv, const string & a, const string & b)
+{
+    char ** argv_begin = argv + 1;
+    char ** argv_end = argv + argc;
+
+    return
+        find(argv_begin, argv_end, a) != argv_end or
+        find(argv_begin, argv_end, b) != argv_end;
+}
+
+int main(int argc, char ** argv)
+{
+    if (argc == 1 or if_option(argc, argv, "-h", "--help"))
     {
-        string input { istreambuf_iterator<char>(in), istreambuf_iterator<char>() };
-        test_encode_decode(input);
+        cout << argv[0] << " [{-c|--compress} | {-d|--decompress} | {-t|--test}] < input_file > output_file\n"
+            << "    -c, --compress      compress stdin to stdout\n"
+            << "    -d, --decompress    decompress stdin to stdout\n"
+            << "    -t, --test          run tests, including compression of stdin\n";
+        return 0;
     }
+
+    auto function = compress;
+
+    if (if_option(argc, argv, "-c", "--compress"))
+        function = compress;
+    else if (if_option(argc, argv, "-d", "--decompress"))
+        function = decompress;
+    else if (if_option(argc, argv, "-t", "--test"))
+        function = test;
+    else
+    {
+        cerr << "See help: " << argv[0] << " [-h|--help]\n";
+        return 1;
+    }
+
+    string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
+    string output = function(input);
+
+    cout.write(&output[0], output.size());
 
     return 0;
 }
