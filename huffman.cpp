@@ -246,7 +246,7 @@ code_t build_code(text_t const & text)
     huffman.pop();
 
     if (result.size() == 1 and result.begin()->second.empty())
-        result.begin()->second = "0";
+        result.begin()->second = int2bit(0);
 
     return result;
 }
