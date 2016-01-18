@@ -98,7 +98,7 @@ unsigned int digits(unsigned int n)
 
 bits_t uint2gamma(unsigned int n)
 {
-    assert(n != 0);
+    assert(n > 0);
 
     unsigned int size = digits(n);
     bits_t result(size - 1, int2bit(0));
