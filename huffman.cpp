@@ -137,8 +137,11 @@ bits_t encode(text_t const & text, code_t const & code)
         if (c != code.end())
             result += c->second;
         else
+        {
             cerr << "Can not encode letter " << l << " ("
                 << (is_char(l) ? string(1, letter2char(l)) : "not a char") << ")\n";
+            abort();
+        }
     }
     return result;
 }
@@ -167,7 +170,7 @@ text_t decode(bits_t const & text, code_t const & code)
         else
         {
             cerr << "Failed to decode bit sequence from position " << i << ": " << text.substr(i, 100) << "...\n";
-            break;
+            abort();
         }
 
         i += s;
