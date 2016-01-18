@@ -134,7 +134,7 @@ bits_t encode(text_t const & text, code_t const & code)
     for (auto l : text)
     {
         auto c = code.find(l);
-        if (c != code.end())
+        if (c != code.cend())
             result += c->second;
         else
         {
@@ -202,7 +202,7 @@ public:
         b.prepend(int2bit(1));
 
         swap(code, a.code);
-        code.insert(b.code.begin(), b.code.end());
+        code.insert(b.code.cbegin(), b.code.cend());
     }
 
     void prepend(bit_t bit)
@@ -248,7 +248,7 @@ code_t build_code(text_t const & text)
     code_t result = huffman.top().code;
     huffman.pop();
 
-    if (result.size() == 1 and result.begin()->second.empty())
+    if (result.size() == 1 and result.cbegin()->second.empty())
         result.begin()->second = int2bit(0);
 
     return result;
@@ -407,7 +407,7 @@ void test_prefix_code(code_t const & code)
 void test_encode_decode(string const & input, text_t suffix = text_t { })
 {
     text_t text = char2letter(input);
-    text.insert(text.end(), suffix.begin(), suffix.end());
+    text.insert(text.end(), suffix.cbegin(), suffix.cend());
 
     code_t code = build_code(text);
     test_prefix_code(code);
