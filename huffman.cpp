@@ -27,6 +27,7 @@ char letter2char(letter_t l)
 
 letter_t const max_char = char2letter(numeric_limits<unsigned char>::max());
 letter_t const sentinel = max_char + 1; /* Just for a demonstration purpose. */
+letter_t const max_letter = numeric_limits<letter_t>::max() / 2;
 
 bool is_char(letter_t l)
 {
@@ -128,6 +129,139 @@ unsigned int gamma2uint(bits_t const & bits, size_t & position)
     return result;
 }
 
+class decode_t
+{
+public:
+    decode_t()
+    {
+    }
+
+    explicit decode_t(code_t const & code)
+    {
+        for (auto const & c : code)
+            push(c.second, c.first);
+    }
+
+    void push(bits_t const & bits, letter_t letter)
+    {
+        if (letter > max_letter)
+        {
+            cerr << "Error: letter value " << letter << " is greater than maximum " << max_letter << ".\n";
+            abort();
+        }
+
+        if (bits.size() == 0)
+        {
+            cerr << "Error: code for letter=" << letter << " is empty.\n";
+            abort();
+        }
+
+        node_index_t position = 0;
+        node_index_t node = walk(bits, position);
+        if (position >= bits.size())
+        {
+            cerr << "Error: code " << bits << " for letter=" << letter
+                << " is a prefix of another code.\n";
+            abort();
+        }
+
+        trie.reserve(trie.size() + bits.size() - 1 - position);
+        for (; position < bits.size() - 1; ++position)
+        {
+            node_index_t next = trie.size();
+            trie.push_back(node_t { });
+            trie[node].set_child(bits[position], next);
+            node = next;
+        }
+
+        trie[node].set_letter(bits[position], letter);
+    }
+
+    letter_t decode(bits_t const & bits, size_t & position) const
+    {
+        size_t p = position;
+        auto const & node = trie[walk(bits, p)];
+        if (not node.is_leaf(bits[p]))
+            return letter_t { };
+        position = p + 1;
+        return node.get_letter(bits[p]);
+    }
+
+private:
+    using node_index_t = size_t;
+
+    class node_t
+    {
+    public:
+        bool is_leaf(bit_t bit) const
+        {
+            return child[bit2int(bit)] > max_node;
+        }
+
+        bool is_nil(bit_t bit) const
+        {
+            return child[bit2int(bit)] == nil;
+        }
+
+        bool is_child(bit_t bit) const
+        {
+            node_index_t node = child[bit2int(bit)];
+            return node <= max_node and node != nil;
+        }
+
+        letter_t get_letter(bit_t bit) const
+        {
+            assert(is_leaf(bit));
+            return letters_top - child[bit2int(bit)];
+        }
+
+        void set_letter(bit_t bit, letter_t letter)
+        {
+            assert(letters_top - letter > max_node);
+            assert(is_nil(bit));
+            child[bit2int(bit)] = letters_top - letter;
+        }
+
+        node_index_t get_child(bit_t bit) const
+        {
+            assert(is_child(bit));
+            return child[bit2int(bit)];
+        }
+
+        void set_child(bit_t bit, node_index_t node)
+        {
+            assert(is_nil(bit));
+            child[bit2int(bit)] = node;
+        }
+
+    private:
+        static_assert(sizeof(node_index_t) >= sizeof(letter_t), "letter_t variables can not fit in node_index_t, use a larger type for trie node index");
+
+        static node_index_t const letters_top = numeric_limits<node_index_t>::max();
+        static node_index_t const max_node = numeric_limits<node_index_t>::max() / 2;
+
+        static_assert(letters_top - max_letter > max_node, "letter and node index ranges can not be combined into node_index_t, reduce these ranges or do not store them in one variable.");
+
+        static node_index_t const nil = 0;
+
+        node_index_t child[2] { nil, nil };
+    };
+
+    node_index_t walk(bits_t const & bits, node_index_t & position) const
+    {
+        node_index_t node = 0;
+        for (; position < bits.size() and trie[node].is_child(bits[position]); ++position)
+        {
+            node_index_t next = trie[node].get_child(bits[position]);
+            assert(node < next and next < trie.size());
+            node = next;
+        }
+        return node;
+    }
+
+    vector<node_t> trie { node_t { } };
+};
+
 bits_t encode(text_t const & text, code_t const & code)
 {
     bits_t result;
@@ -146,26 +280,16 @@ bits_t encode(text_t const & text, code_t const & code)
     return result;
 }
 
-// FIXME: inoptimal, use trie instead
-text_t decode(bits_t const & text, code_t const & code)
+text_t decode(bits_t const & text, decode_t const & code)
 {
     text_t result;
 
     for (size_t i = 0; i < text.size(); )
     {
-        letter_t l;
-        size_t s = 0;
+        size_t position = i;
+        letter_t l = code.decode(text, position);
 
-        for (auto const & c : code)
-            if (c.second.size() <= text.size() - i and
-                c.second == text.substr(i, c.second.size()))
-            {
-                l = c.first;
-                s = c.second.size();
-                break;
-            }
-
-        if (s)
+        if (i < position)
             result.push_back(l);
         else
         {
@@ -173,7 +297,7 @@ text_t decode(bits_t const & text, code_t const & code)
             abort();
         }
 
-        i += s;
+        i = position;
     }
 
     return result;
@@ -193,6 +317,11 @@ public:
         count { count },
         code { { letter, "" } }
     {
+        if (letter > max_letter)
+        {
+            cerr << "Error: letter value " << letter << " is greater than maximum " << max_letter << ".\n";
+            abort();
+        }
     }
 
     huffman_t(huffman_t && a, huffman_t && b) :
@@ -293,9 +422,9 @@ bits_t pack_code(code_t const & code)
     return result;
 }
 
-code_t unpack_code(bits_t const & bits, size_t & position)
+decode_t unpack_code(bits_t const & bits, size_t & position)
 {
-    code_t result;
+    decode_t result;
 
     letter_t letter = -1;
 
@@ -315,7 +444,7 @@ code_t unpack_code(bits_t const & bits, size_t & position)
         bits_t code = bits.substr(position, code_size);
         position += code_size;
 
-        result[letter] = code;
+        result.push(code, letter);
     }
 
     if (i != entries)
@@ -426,8 +555,7 @@ void test_encode_decode(string const & input, text_t suffix = text_t { })
     bits_t unpacked = unpack_bits(packed);
 
     size_t position = 0;
-    code_t unpacked_code = unpack_code(unpacked, position);
-    assert(code == unpacked_code);
+    decode_t unpacked_code = unpack_code(unpacked, position);
 
     unpacked = unpacked.substr(position);
     assert(unpacked == encoded_text);
@@ -490,7 +618,7 @@ string decompress(string const & packed)
 {
     bits_t unpacked = unpack_bits(packed);
     size_t position = 0;
-    code_t unpacked_code = unpack_code(unpacked, position);
+    decode_t unpacked_code = unpack_code(unpacked, position);
     unpacked = unpacked.substr(position);
     return letter2char(decode(unpacked, unpacked_code));
 }
