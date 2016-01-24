@@ -2,10 +2,12 @@
 #include <cctype>
 #include <cstdlib>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <queue>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -187,8 +189,62 @@ public:
         return node.get_letter(bits[p]);
     }
 
+    void dump(ostream & out, string const & label) const
+    {
+        static size_t const max_label = 80;
+
+        out << "digraph {\n  label=\"";
+        for (auto const & c : label.substr(0, max_label))
+            out << escape(c);
+        out << "\"\n  fontsize=32\n";
+
+        for (node_index_t i = 0; i < trie.size(); ++i)
+        {
+            out << "  node_" << i << " [label = \"\", shape = point]\n";
+            auto const & node = trie[i];
+            for (int j = 0; j <= 1; ++j)
+            {
+                if (node.is_leaf(j))
+                {
+                    letter_t l = node.get_letter(j);
+                    out << "  node_" << i << '_' << j << " [label = \"";
+                    if (is_char(l))
+                        out << escape(letter2char(l));
+                    else
+                        out << "letter=" << l;
+                    out << "\", shape = box]\n"
+                        << "  node_" << i << " -> node_" << i << '_' << j;
+                }
+                else if (node.is_nil(j))
+                    out << "  node_" << i << '_' << j
+                        << " [label = \"nil\", shape = circle]\n"
+                        << "  node_" << i << " -> node_" << i << '_' << j;
+                else
+                    out << "  node_" << i << " -> node_" << node.get_child(j);
+                out << " [label = \"" << j << "\"]\n";
+            }
+        }
+
+        out << "}\n";
+    }
+
 private:
     using node_index_t = size_t;
+
+    static string escape(char c)
+    {
+        if (not isprint(c))
+        {
+            ostringstream result;
+            result << "\\\\x" << hex << setfill('0') << setw(2)
+                << static_cast<int>(static_cast<unsigned char>(c));
+            return result.str();
+        }
+        else if (c == '"' or c == '\\')
+            return string { "\\" } + c;
+        else
+            return string { 1, c };
+    }
 
     class node_t
     {
@@ -533,7 +589,7 @@ void test_prefix_code(code_t const & code)
     }
 }
 
-void test_encode_decode(string const & input, text_t suffix = text_t { })
+void test_encode_decode(bool print, string const & input, text_t suffix = text_t { })
 {
     text_t text = char2letter(input);
     text.insert(text.end(), suffix.cbegin(), suffix.cend());
@@ -557,6 +613,12 @@ void test_encode_decode(string const & input, text_t suffix = text_t { })
     size_t position = 0;
     decode_t unpacked_code = unpack_code(unpacked, position);
 
+    if (print)
+    {
+        cerr << "code trie *************\n";
+        unpacked_code.dump(cerr, input);
+    }
+
     unpacked = unpacked.substr(position);
     assert(unpacked == encoded_text);
 
@@ -579,7 +641,7 @@ void test_encode_decode(string const & input, text_t suffix = text_t { })
         << float(packed.size()) / decoded_input.size() << '\n';
 }
 
-string test(string const & input)
+string test(string const & input, bool print)
 {
     test_gamma();
 
@@ -596,31 +658,43 @@ string test(string const & input)
 
     for (auto const & text : test_data)
     {
-        test_encode_decode(text);
-        test_encode_decode(text, { sentinel });
+        test_encode_decode(print, text);
+        test_encode_decode(print, text, { sentinel });
     }
 
-    test_encode_decode(input);
+    test_encode_decode(print, input);
 
     return "Tests passed.\n";
 }
 
-string compress(string const & input)
+string compress(string const & input, bool print)
 {
     text_t text = char2letter(input);
     code_t code = build_code(text);
+
+    if (print)
+    {
+        decode_t decode { code };
+        decode.dump(cerr, input);
+    }
+
     bits_t packed_code = pack_code(code);
     bits_t encoded_text = encode(text, code);
     return pack_bits(packed_code + encoded_text);
 }
 
-string decompress(string const & packed)
+string decompress(string const & packed, bool print)
 {
     bits_t unpacked = unpack_bits(packed);
     size_t position = 0;
     decode_t unpacked_code = unpack_code(unpacked, position);
     unpacked = unpacked.substr(position);
-    return letter2char(decode(unpacked, unpacked_code));
+    string result = letter2char(decode(unpacked, unpacked_code));
+
+    if (print)
+        unpacked_code.dump(cerr, result);
+
+    return result;
 }
 
 bool if_option(int argc, char ** argv, const string & a, const string & b)
@@ -637,12 +711,15 @@ int main(int argc, char ** argv)
 {
     if (argc == 1 or if_option(argc, argv, "-h", "--help"))
     {
-        cout << argv[0] << " [{-c|--compress} | {-d|--decompress} | {-t|--test}] < input_file > output_file\n"
+        cout << argv[0] << " [{-c|--compress} | {-d|--decompress} | {-t|--test}] [{-p|--print}] < input_file > output_file\n"
             << "    -c, --compress      compress stdin to stdout\n"
             << "    -d, --decompress    decompress stdin to stdout\n"
-            << "    -t, --test          run tests, including compression of stdin\n";
+            << "    -t, --test          run tests, including compression of stdin\n"
+            << "    -p, --print         also print code trie(s) in dot format on stderr\n";
         return 0;
     }
+
+    bool print = if_option(argc, argv, "-p", "--print");
 
     auto function = compress;
 
@@ -659,7 +736,7 @@ int main(int argc, char ** argv)
     }
 
     string input { istreambuf_iterator<char>(cin), istreambuf_iterator<char>() };
-    string output = function(input);
+    string output = function(input, print);
 
     cout.write(&output[0], output.size());
 
