@@ -31,6 +31,11 @@ letter_t const max_char = char2letter(numeric_limits<unsigned char>::max());
 letter_t const sentinel = max_char + 1; /* Just for a demonstration purpose. */
 letter_t const max_letter = numeric_limits<letter_t>::max() / 2;
 
+size_t const bits_per_char = numeric_limits<unsigned char>::digits;
+
+static_assert(sizeof(letter_t) > sizeof(char), "choose a wider type for letter_t so it can hold more than just a char");
+static_assert(bits_per_char == 8, "bits_per_char != 8, pack_bits()/unpack_bits() have to be rewritten to be platform independent");
+
 bool is_char(letter_t l)
 {
     return l <= max_char;
@@ -536,16 +541,16 @@ bits_t unpad(bits_t const & bits)
 
 string pack_bits(bits_t bits)
 {
-    string result;
+    bits = pad(bits, bits_per_char);
 
-    bits = pad(bits, CHAR_BIT);
+    string result(bits.size() / bits_per_char, '\0');
 
-    for (size_t i = 0; i < bits.size(); )
+    for (size_t i = 0, j = 0; i < result.size(); ++i)
     {
-        uint8_t ch = 0;
-        for (size_t j = 0; j < CHAR_BIT; ++j, ++i)
-            ch = (ch << 1) | bit2int(bits[i]);
-        result += static_cast<char>(ch);
+        unsigned char ch = 0;
+        for (size_t k = 0; k < bits_per_char; ++j, ++k)
+            ch = (ch << 1) | bit2int(bits[j]);
+        result[i] = ch;
     }
 
     return result;
@@ -553,11 +558,14 @@ string pack_bits(bits_t bits)
 
 bits_t unpack_bits(string const & in)
 {
-    string result;
+    string result(in.size() * bits_per_char, '\0');
 
-    for (uint8_t ch : in)
-        for (size_t j = CHAR_BIT; j--; )
-            result += int2bit((ch >> j) & 1);
+    for (size_t i = 0, j = 0; i < in.size(); ++i)
+    {
+        unsigned char ch = in[i];
+        for (size_t k = bits_per_char; k-- > 0; ++j)
+            result[j] += int2bit((ch >> k) & 1);
+    }
 
     return unpad(result);
 }
@@ -634,7 +642,7 @@ void test_encode_decode(bool print, string const & input, text_t suffix = text_t
         << "encoded ***************\n"
         << packed_code + encoded_text << "\n\n"
         << "decoded size in chars: " << decoded_input.size() << '\n'
-        << "decoded size in bits: " << decoded_input.size() * CHAR_BIT << '\n'
+        << "decoded size in bits: " << decoded_input.size() * bits_per_char << '\n'
         << "decoded ***************\n"
         << decoded_input << '\n'
         << "pack ratio ************\n"
